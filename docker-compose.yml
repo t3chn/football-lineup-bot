@@ -1,5 +1,3 @@
-version: "3.8"
-
 services:
   backend:
     build:
@@ -8,11 +6,10 @@ services:
     ports:
       - "8000:8000"
     environment:
-      - TELEGRAM_BOT_TOKEN=${TELEGRAM_BOT_TOKEN:-}
-      - API_FOOTBALL_KEY=${API_FOOTBALL_KEY:-}
-      - WEBHOOK_URL=${WEBHOOK_URL:-}
-      - WEBHOOK_SECRET=${WEBHOOK_SECRET:-webhook_secret}
-      - API_KEY=${API_KEY:-}
+      - API_KEY=test-api-key
+      - TELEGRAM_BOT_TOKEN=dummy_token_for_dev
+      - API_FOOTBALL_KEY=dummy_api_key_for_dev
+      - WEBHOOK_SECRET=webhook_secret
       - REDIS_URL=redis://redis:6379/0
       - DATABASE_URL=postgresql+asyncpg://football_bot:${DB_PASSWORD:-password}@postgres:5432/football_lineup
       - ENVIRONMENT=development
@@ -35,7 +32,7 @@ services:
   frontend-dev:
     image: node:20-alpine
     working_dir: /app
-    command: npm run dev
+    command: sh -c "npm install && npm run dev"
     ports:
       - "5173:5173"
     volumes:

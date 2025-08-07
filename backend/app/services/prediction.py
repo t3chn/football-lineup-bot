@@ -1,9 +1,5 @@
 """Prediction service."""
 
-import httpx
-
-from backend.app.adapters.football_api import FootballAPIClient
-from backend.app.exceptions import ExternalAPIError, TeamNotFoundError, TimeoutError
 from backend.app.models.prediction import Player, PredictionResponse
 from backend.app.repositories.prediction import PredictionRepository
 from backend.app.services.cache_factory import get_cache
@@ -102,65 +98,12 @@ class PredictionService:
             team_name: Name of the team
 
         Returns:
-            Prediction response
-
-        Raises:
-            TeamNotFoundError: If team not found
-            ExternalAPIError: If external API fails
-            TimeoutError: If API request times out
+            Prediction response (mock data for development)
         """
         log = logger.bind(team=team_name, method="_fetch_from_api")
 
-        try:
-            async with FootballAPIClient() as client:
-                # Search for team
-                log.debug("Searching for team in API")
-                team_data = await client.search_team(team_name)
-
-                if not team_data.get("response"):
-                    log.warning("Team not found in API response", api_response=team_data)
-                    raise TeamNotFoundError(team_name)
-
-                team_info = team_data["response"][0]
-                team_id = team_info.get("team", {}).get("id")
-
-                if not team_id:
-                    log.error("Team ID not found in response", team_info=team_info)
-                    raise TeamNotFoundError(team_name, details={"response": team_info})
-
-                log.info("Team found", team_id=team_id)
-
-                # Get upcoming fixtures (for future use)
-                await client.get_team_fixtures(team_id, next_games=1)
-
-        except httpx.TimeoutException as e:
-            log.error("API timeout", error=str(e))
-            raise TimeoutError(
-                "Football API request timed out", timeout_seconds=30, details={"team": team_name}
-            ) from e
-
-        except httpx.HTTPError as e:
-            log.error("HTTP error from API", error=str(e))
-            raise ExternalAPIError(
-                f"Football API error: {e}",
-                api_name="football-api",
-                details={"team": team_name, "error": str(e)},
-            ) from e
-
-        except (TeamNotFoundError, ExternalAPIError, TimeoutError):
-            # Re-raise our custom exceptions
-            raise
-
-        except Exception as e:
-            # Log unexpected errors but still return mock data for MVP
-            log.error(
-                "Unexpected error, falling back to mock data",
-                error=str(e),
-                error_type=type(e).__name__,
-            )
-
-        # For MVP, return mock lineup
-        log.info("Generating mock lineup")
+        # For development, always return mock data
+        log.info("Returning mock data for development")
         lineup = self._generate_mock_lineup()
 
         return PredictionResponse(
@@ -168,7 +111,7 @@ class PredictionService:
             formation="4-3-3",
             lineup=lineup,
             confidence=0.75,
-            source="mock",  # Change to "api" when using real data
+            source="mock",
             cached=False,
         )
 

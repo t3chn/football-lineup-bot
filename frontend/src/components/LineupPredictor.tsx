@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useMutation } from '@tanstack/react-query';
 import { api } from '../api/client';
 import type { PredictionResponse } from '../api/client';
@@ -8,11 +8,28 @@ function LineupPredictor() {
   const [teamName, setTeamName] = useState('');
   const [prediction, setPrediction] = useState<PredictionResponse | null>(null);
 
+  useEffect(() => {
+    console.log('LineupPredictor: prediction state changed:', prediction);
+    if (prediction) {
+      console.log('LineupPredictor: has lineup?', !!prediction.lineup);
+      console.log('LineupPredictor: lineup length:', prediction.lineup?.length);
+    }
+  }, [prediction]);
+
   const predictMutation = useMutation({
     mutationFn: api.predictLineup,
     onSuccess: (data) => {
+      console.log('LineupPredictor: onSuccess called with data:', data);
+      console.log('LineupPredictor: Setting prediction state...');
       setPrediction(data);
+      console.log('LineupPredictor: Prediction state set');
     },
+    onError: (error) => {
+      console.error('LineupPredictor: onError called:', error);
+    },
+    onSettled: (data, error) => {
+      console.log('LineupPredictor: onSettled - data:', data, 'error:', error);
+    }
   });
 
   const handleSubmit = (e: React.FormEvent) => {
@@ -59,6 +76,13 @@ function LineupPredictor() {
           )}
         </form>
       </div>
+
+      {/* Debug info */}
+      {predictMutation.isSuccess && !prediction && (
+        <div className="p-3 bg-yellow-100 border border-yellow-400 rounded-lg text-yellow-700">
+          Success but no data to display. Check console.
+        </div>
+      )}
 
       {prediction && (
         <div className="bg-white dark:bg-gray-800 rounded-lg shadow p-6">

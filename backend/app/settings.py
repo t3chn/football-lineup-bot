@@ -57,6 +57,12 @@ class Settings(BaseSettings):
         description="Cache TTL in seconds",
     )
 
+    # Redis Settings (for rate limiting and caching)
+    redis_url: str | None = Field(
+        default=None,
+        description="Redis URL for rate limiting and caching",
+    )
+
     # Webhook Configuration
     webhook_url: str = Field(
         default="",

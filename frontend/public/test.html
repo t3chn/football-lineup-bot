@@ -1,0 +1,43 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>API Debug Test</title>
+    <script src="https://cdn.jsdelivr.net/npm/axios/dist/axios.min.js"></script>
+</head>
+<body>
+    <h1>API Debug Test</h1>
+    <button id="testBtn">Test API</button>
+    <pre id="result"></pre>
+
+    <script>
+        const apiClient = axios.create({
+            baseURL: 'http://localhost:8000',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-API-Key': 'test-api-key',
+            },
+        });
+
+        document.getElementById('testBtn').addEventListener('click', async () => {
+            const resultEl = document.getElementById('result');
+            resultEl.textContent = 'Loading...';
+
+            try {
+                const response = await apiClient.get('/predict/Arsenal');
+                resultEl.textContent = 'SUCCESS:\n' + JSON.stringify(response.data, null, 2);
+            } catch (error) {
+                resultEl.textContent = 'ERROR:\n';
+                if (error.response) {
+                    resultEl.textContent += 'Status: ' + error.response.status + '\n';
+                    resultEl.textContent += 'Data: ' + JSON.stringify(error.response.data, null, 2);
+                } else if (error.request) {
+                    resultEl.textContent += 'No response received\n';
+                    resultEl.textContent += 'Request: ' + error.request;
+                } else {
+                    resultEl.textContent += 'Error: ' + error.message;
+                }
+            }
+        });
+    </script>
+</body>
+</html>

@@ -4,9 +4,12 @@ from contextlib import asynccontextmanager
 
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+from slowapi import _rate_limit_exceeded_handler
+from slowapi.errors import RateLimitExceeded
 
 from backend.app import __version__
 from backend.app.middleware.logging import LoggingMiddleware
+from backend.app.middleware.rate_limiting import limiter
 from backend.app.routers import health, predict, telegram
 from backend.app.settings import get_settings
 from backend.app.utils.logging import get_logger, setup_logging
@@ -35,6 +38,10 @@ app = FastAPI(
     version=__version__,
     lifespan=lifespan,
 )
+
+# Add rate limiter state and exception handler
+app.state.limiter = limiter
+app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
 
 # Add request logging middleware first (innermost)
 app.add_middleware(LoggingMiddleware)

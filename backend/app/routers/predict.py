@@ -4,6 +4,7 @@ from fastapi import APIRouter, Depends, HTTPException, Request
 
 from backend.app.auth import require_auth
 from backend.app.exceptions import BusinessError, ExternalAPIError, TeamNotFoundError
+from backend.app.middleware.rate_limiting import limiter
 from backend.app.models.prediction import PredictionResponse
 from backend.app.services.prediction import get_prediction_service
 from backend.app.utils.logging import generate_request_id, get_logger, set_request_id
@@ -14,6 +15,7 @@ logger = get_logger(__name__)
 
 
 @router.get("/{team_name}", response_model=PredictionResponse)
+@limiter.limit("10 per minute")  # Default rate limit for this endpoint
 async def predict_lineup(
     request: Request,
     team_name: TeamNamePath,
