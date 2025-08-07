@@ -3,7 +3,7 @@
 from datetime import datetime
 
 from sqlalchemy import JSON, Boolean, Column, DateTime, Float, Integer, String
-from sqlalchemy.ext.declarative import declarative_base
+from sqlalchemy.orm import declarative_base
 
 Base = declarative_base()
 
@@ -23,12 +23,16 @@ class PredictionHistory(Base):
 
 
 class User(Base):
-    """User management for API access."""
+    """User management for API access and Telegram integration."""
 
     __tablename__ = "users"
 
     id = Column(Integer, primary_key=True, index=True)
-    username = Column(String(100), unique=True, nullable=False, index=True)
+    telegram_id = Column(Integer, unique=True, nullable=True, index=True)  # Telegram user ID
+    username = Column(String(100), nullable=True, index=True)  # Make nullable for Telegram users
+    first_name = Column(String(100), nullable=True)  # Telegram first name
+    last_name = Column(String(100), nullable=True)  # Telegram last name
+    language_code = Column(String(10), nullable=True)  # User language preference
     email = Column(String(255), unique=True, nullable=True, index=True)
     api_key_hash = Column(String(255), unique=True, nullable=True)  # Hashed API key
     created_at = Column(DateTime, default=datetime.utcnow)

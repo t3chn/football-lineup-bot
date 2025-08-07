@@ -17,15 +17,23 @@ class UserRepository:
 
     async def create(
         self,
-        username: str,
+        username: str | None = None,
         email: str | None = None,
         api_key_hash: str | None = None,
+        telegram_id: int | None = None,
+        first_name: str | None = None,
+        last_name: str | None = None,
+        language_code: str | None = None,
     ) -> User:
         """Create new user record."""
         user = User(
             username=username,
             email=email,
             api_key_hash=api_key_hash,
+            telegram_id=telegram_id,
+            first_name=first_name,
+            last_name=last_name,
+            language_code=language_code,
         )
 
         self.session.add(user)
@@ -76,4 +84,41 @@ class UserRepository:
             user.updated_at = datetime.utcnow()
             await self.session.commit()
             await self.session.refresh(user)
+        return user
+
+    async def get_by_telegram_id(self, telegram_id: int) -> User | None:
+        """Get user by Telegram ID."""
+        stmt = select(User).where(User.telegram_id == telegram_id)
+        result = await self.session.execute(stmt)
+        return result.scalar_one_or_none()
+
+    async def update_last_activity(self, telegram_id: int) -> User | None:
+        """Update user's last activity timestamp."""
+        user = await self.get_by_telegram_id(telegram_id)
+        if user:
+            user.updated_at = datetime.utcnow()
+            await self.session.commit()
+            await self.session.refresh(user)
+        return user
+
+    async def get_or_create_user(
+        self,
+        telegram_id: int,
+        username: str | None = None,
+        first_name: str | None = None,
+        last_name: str | None = None,
+        language_code: str | None = None,
+    ) -> User:
+        """Get existing user by Telegram ID or create new one."""
+        user = await self.get_by_telegram_id(telegram_id)
+
+        if user is None:
+            user = await self.create(
+                telegram_id=telegram_id,
+                username=username,
+                first_name=first_name,
+                last_name=last_name,
+                language_code=language_code,
+            )
+
         return user

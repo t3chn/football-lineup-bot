@@ -62,3 +62,23 @@ class PredictionRepository:
 
         result = await self.session.execute(stmt)
         return list(result.scalars().all())
+
+    async def get_by_team(self, team_name: str, limit: int = 10) -> list[PredictionHistory]:
+        """Get predictions by team name."""
+        return await self.get_recent_by_team(team_name, limit)
+
+    async def get_recent(self, limit: int = 20) -> list[PredictionHistory]:
+        """Get recent predictions (alias for get_recent_predictions)."""
+        return await self.get_recent_predictions(limit)
+
+    async def get_by_user(self, user_id: str, limit: int = 10) -> list[PredictionHistory]:
+        """Get predictions by user."""
+        stmt = (
+            select(PredictionHistory)
+            .where(PredictionHistory.created_by == user_id)
+            .order_by(desc(PredictionHistory.created_at))
+            .limit(limit)
+        )
+
+        result = await self.session.execute(stmt)
+        return list(result.scalars().all())
