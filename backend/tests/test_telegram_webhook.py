@@ -28,9 +28,13 @@ def test_webhook_endpoint(client):
     }
 
     with (
+        patch("backend.app.routers.telegram.get_settings") as mock_settings,
         patch("backend.app.routers.telegram.get_bot") as mock_get_bot,
         patch("backend.app.routers.telegram.get_dispatcher") as mock_get_dp,
     ):
+        # Configure webhook secret
+        mock_settings.return_value.webhook_secret = "test_secret"
+
         mock_bot = MagicMock()
         mock_dp = MagicMock()
         mock_dp.feed_update = AsyncMock()
@@ -38,7 +42,11 @@ def test_webhook_endpoint(client):
         mock_get_bot.return_value = mock_bot
         mock_get_dp.return_value = mock_dp
 
-        response = client.post("/telegram/webhook", json=update_data)
+        response = client.post(
+            "/telegram/webhook",
+            json=update_data,
+            headers={"X-Telegram-Bot-Api-Secret-Token": "test_secret"},
+        )
 
         assert response.status_code == 200
         assert response.json() == {"ok": True}
@@ -47,19 +55,27 @@ def test_webhook_endpoint(client):
 
 def test_webhook_endpoint_invalid_data(client):
     """Test webhook endpoint with invalid update data."""
-    invalid_data = {"invalid": "data"}
+    invalid_data = {"update_id": 123456}  # Missing required fields
 
     with (
+        patch("backend.app.routers.telegram.get_settings") as mock_settings,
         patch("backend.app.routers.telegram.get_bot") as mock_get_bot,
         patch("backend.app.routers.telegram.get_dispatcher") as mock_get_dp,
     ):
+        # Configure webhook secret
+        mock_settings.return_value.webhook_secret = "test_secret"
+
         mock_get_bot.return_value = MagicMock()
         mock_get_dp.return_value = MagicMock()
 
-        response = client.post("/telegram/webhook", json=invalid_data)
+        response = client.post(
+            "/telegram/webhook",
+            json=invalid_data,
+            headers={"X-Telegram-Bot-Api-Secret-Token": "test_secret"},
+        )
 
-        assert response.status_code == 500
-        assert "Failed to process update" in response.json()["detail"]
+        assert response.status_code == 400  # Changed from 500 to 400 for validation error
+        assert "Invalid webhook data" in response.json()["detail"]
 
 
 def test_set_webhook_success(client):

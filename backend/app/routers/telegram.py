@@ -47,17 +47,30 @@ async def telegram_webhook(request: Request) -> JSONResponse:
         bot = get_bot()
         dp = get_dispatcher()
 
-        # Parse update from request body
+        # Parse and validate update from request body
         import json
 
+        from backend.app.validators.webhook import WebhookUpdateValidator
+
         data = json.loads(body)
-        update = Update(**data)
+
+        # Validate the webhook data
+        try:
+            validated_data = WebhookUpdateValidator(**data)
+        except ValueError as e:
+            logger.warning(f"Invalid webhook data: {e}")
+            raise HTTPException(status_code=400, detail=f"Invalid webhook data: {e}") from e
+
+        # Convert back to Update object for aiogram
+        update = Update(**validated_data.model_dump())
 
         # Process update
         await dp.feed_update(bot, update)
 
         return JSONResponse(content={"ok": True})
 
+    except HTTPException:
+        raise
     except Exception as e:
         logger.error(f"Failed to process webhook update: {e}")
         raise HTTPException(status_code=500, detail="Failed to process update") from e

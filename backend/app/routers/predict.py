@@ -5,16 +5,17 @@ from fastapi import APIRouter, HTTPException
 
 from backend.app.models.prediction import PredictionResponse
 from backend.app.services.prediction import get_prediction_service
+from backend.app.validators.common import TeamNamePath, validate_team_name
 
 router = APIRouter(prefix="/predict", tags=["predictions"])
 
 
-@router.get("/{team}", response_model=PredictionResponse)
-async def predict_lineup(team: str) -> PredictionResponse:
+@router.get("/{team_name}", response_model=PredictionResponse)
+async def predict_lineup(team_name: TeamNamePath) -> PredictionResponse:
     """Get lineup prediction for a team.
 
     Args:
-        team: Team name
+        team_name: Team name (validated)
 
     Returns:
         Prediction with lineup
@@ -22,6 +23,8 @@ async def predict_lineup(team: str) -> PredictionResponse:
     Raises:
         HTTPException: If team not found or API error
     """
+    # Additional validation layer
+    team = validate_team_name(team_name)
     service = get_prediction_service()
 
     try:
