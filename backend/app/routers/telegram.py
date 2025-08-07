@@ -8,6 +8,7 @@ from fastapi.responses import JSONResponse
 
 from backend.app.bot import get_bot, get_dispatcher
 from backend.app.bot.setup import setup_bot
+from backend.app.security import verify_telegram_webhook_signature
 from backend.app.settings import get_settings
 
 logger = logging.getLogger(__name__)
@@ -28,15 +29,28 @@ async def telegram_webhook(request: Request) -> JSONResponse:
         JSONResponse with status
 
     Raises:
-        HTTPException: If webhook processing fails
+        HTTPException: If webhook processing fails or signature is invalid
     """
+    # Verify webhook signature
+    settings = get_settings()
+    signature = request.headers.get("X-Telegram-Bot-Api-Secret-Token")
+    body = await request.body()
+
+    if not verify_telegram_webhook_signature(
+        secret_token=settings.webhook_secret, signature=signature, body=body
+    ):
+        logger.warning("Invalid webhook signature received")
+        raise HTTPException(status_code=403, detail="Invalid signature")
+
     try:
         # Get bot and dispatcher instances
         bot = get_bot()
         dp = get_dispatcher()
 
-        # Parse update from request
-        data = await request.json()
+        # Parse update from request body
+        import json
+
+        data = json.loads(body)
         update = Update(**data)
 
         # Process update
