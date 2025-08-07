@@ -6,12 +6,18 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from backend.app import __version__
+from backend.app.middleware.logging import LoggingMiddleware
 from backend.app.routers import health, predict, telegram
 from backend.app.settings import get_settings
 from backend.app.utils.logging import get_logger, setup_logging
 
+settings = get_settings()
+
 # Setup structured logging
-setup_logging(log_level="INFO", json_format=False)
+setup_logging(
+    log_level="DEBUG" if settings.is_development else "INFO",
+    json_format=settings.is_production,
+)
 logger = get_logger(__name__)
 
 
@@ -30,8 +36,10 @@ app = FastAPI(
     lifespan=lifespan,
 )
 
-settings = get_settings()
+# Add request logging middleware first (innermost)
+app.add_middleware(LoggingMiddleware)
 
+# Add CORS middleware
 app.add_middleware(
     CORSMiddleware,
     allow_origins=settings.cors_origins,

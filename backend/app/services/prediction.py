@@ -7,7 +7,13 @@ from backend.app.exceptions import ExternalAPIError, TeamNotFoundError, TimeoutE
 from backend.app.models.prediction import Player, PredictionResponse
 from backend.app.repositories.prediction import PredictionRepository
 from backend.app.services.cache_factory import get_cache
-from backend.app.utils.logging import generate_request_id, get_logger, set_request_id
+from backend.app.utils.logging import (
+    generate_request_id,
+    get_logger,
+    get_request_id,
+    log_performance,
+    set_request_id,
+)
 
 logger = get_logger(__name__)
 
@@ -34,52 +40,60 @@ class PredictionService:
             ExternalAPIError: If external API fails
             TimeoutError: If API request times out
         """
-        # Generate request ID for tracking
-        request_id = generate_request_id()
-        set_request_id(request_id)
+        # Use existing request ID if available, otherwise generate new one
+        request_id = get_request_id() or generate_request_id()
+        if get_request_id() is None:
+            set_request_id(request_id)
+
         log = logger.bind(request_id=request_id, team=team_name)
 
-        log.info("Starting prediction request")
+        with log_performance(log, "get_prediction", team=team_name):
+            log.info("Starting prediction request")
 
-        # Initialize cache if not already done
-        if self.cache is None:
-            self.cache = await get_cache()
+            # Initialize cache if not already done
+            if self.cache is None:
+                with log_performance(log, "initialize_cache"):
+                    self.cache = await get_cache()
 
-        # Check cache first
-        cache_key = f"prediction:{team_name.lower()}"
-        cached_data = await self.cache.get(cache_key)
+            # Check cache first
+            cache_key = f"prediction:{team_name.lower()}"
+            with log_performance(log, "cache_lookup", cache_key=cache_key):
+                cached_data = await self.cache.get(cache_key)
 
-        if cached_data:
-            prediction = PredictionResponse(**cached_data)
-            prediction.cached = True
-            log.info("Returning cached prediction", cache_hit=True)
+            if cached_data:
+                prediction = PredictionResponse(**cached_data)
+                prediction.cached = True
+                log.info("Returning cached prediction", cache_hit=True)
+                return prediction
+
+            log.info("Cache miss, fetching from API", cache_hit=False)
+
+            # Fetch from API
+            with log_performance(log, "api_fetch"):
+                prediction = await self._fetch_from_api(team_name)
+
+            # Cache the result
+            with log_performance(log, "cache_store"):
+                await self.cache.set(cache_key, prediction.model_dump())
+                log.info("Prediction cached", cache_key=cache_key)
+
+            # Store in database if repository is available
+            if self.prediction_repo:
+                with log_performance(log, "database_store"):
+                    try:
+                        await self.prediction_repo.create(
+                            team_name=team_name,
+                            formation=prediction.formation,
+                            lineup=prediction.model_dump(),
+                            confidence=prediction.confidence,
+                            created_by="system",  # Could be user ID in future
+                        )
+                        log.debug("Prediction stored in database")
+                    except Exception as e:
+                        # Don't fail the request if database storage fails
+                        log.warning("Failed to store prediction in database", error=str(e))
+
             return prediction
-
-        log.info("Cache miss, fetching from API", cache_hit=False)
-
-        # Fetch from API
-        prediction = await self._fetch_from_api(team_name)
-
-        # Cache the result
-        await self.cache.set(cache_key, prediction.model_dump())
-        log.info("Prediction cached", cache_key=cache_key)
-
-        # Store in database if repository is available
-        if self.prediction_repo:
-            try:
-                await self.prediction_repo.create(
-                    team_name=team_name,
-                    formation=prediction.formation,
-                    lineup=prediction.model_dump(),
-                    confidence=prediction.confidence,
-                    created_by="system",  # Could be user ID in future
-                )
-                log.debug("Prediction stored in database")
-            except Exception as e:
-                # Don't fail the request if database storage fails
-                log.warning("Failed to store prediction in database", error=str(e))
-
-        return prediction
 
     async def _fetch_from_api(self, team_name: str) -> PredictionResponse:
         """Fetch prediction from external API.

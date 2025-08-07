@@ -29,13 +29,18 @@ def add_request_id(logger: Any, method_name: str, event_dict: dict[str, Any]) ->
     return event_dict
 
 
-def setup_logging(log_level: str = "INFO", json_format: bool = False) -> None:
+def setup_logging(log_level: str = "INFO", json_format: bool | None = None) -> None:
     """Setup structured logging.
 
     Args:
         log_level: Logging level
-        json_format: Whether to use JSON format
+        json_format: Whether to use JSON format (auto-detect from environment if None)
     """
+    # Auto-detect JSON format if not specified
+    if json_format is None:
+        import os
+
+        json_format = os.getenv("ENVIRONMENT", "development").lower() == "production"
     # Configure standard logging
     logging.basicConfig(
         format="%(message)s",
@@ -54,6 +59,14 @@ def setup_logging(log_level: str = "INFO", json_format: bool = False) -> None:
         structlog.processors.StackInfoRenderer(),
         structlog.processors.format_exc_info,
         structlog.processors.UnicodeDecoder(),
+        # Add callsite information for better debugging
+        structlog.processors.CallsiteParameterAdder(
+            parameters=[
+                structlog.processors.CallsiteParameter.FILENAME,
+                structlog.processors.CallsiteParameter.LINENO,
+                structlog.processors.CallsiteParameter.FUNC_NAME,
+            ]
+        ),
     ]
 
     if json_format:
@@ -97,3 +110,69 @@ def set_request_id(request_id: str | None) -> None:
         request_id: Request ID to set
     """
     request_id_var.set(request_id)
+
+
+def get_request_id() -> str | None:
+    """Get the current request ID.
+
+    Returns:
+        Current request ID or None if not set
+    """
+    return request_id_var.get()
+
+
+class PerformanceLogger:
+    """Context manager for performance logging."""
+
+    def __init__(self, logger: structlog.BoundLogger, operation: str, **kwargs: Any) -> None:
+        """Initialize performance logger.
+
+        Args:
+            logger: Logger instance
+            operation: Operation name
+            **kwargs: Additional context
+        """
+        self.logger = logger.bind(operation=operation, **kwargs)
+        self.operation = operation
+        self.start_time: float = 0
+
+    def __enter__(self) -> "PerformanceLogger":
+        """Start timing."""
+        import time
+
+        self.start_time = time.time()
+        self.logger.debug("Operation started")
+        return self
+
+    def __exit__(self, exc_type: Any, exc_val: Any, exc_tb: Any) -> None:
+        """End timing and log result."""
+        import time
+
+        duration = time.time() - self.start_time
+        duration_ms = round(duration * 1000, 2)
+
+        if exc_type:
+            self.logger.error(
+                "Operation failed",
+                duration_ms=duration_ms,
+                error=str(exc_val),
+                error_type=exc_type.__name__,
+            )
+        else:
+            self.logger.info("Operation completed", duration_ms=duration_ms)
+
+
+def log_performance(
+    logger: structlog.BoundLogger, operation: str, **kwargs: Any
+) -> PerformanceLogger:
+    """Create a performance logging context manager.
+
+    Args:
+        logger: Logger instance
+        operation: Operation name
+        **kwargs: Additional context
+
+    Returns:
+        Performance logger context manager
+    """
+    return PerformanceLogger(logger, operation, **kwargs)
