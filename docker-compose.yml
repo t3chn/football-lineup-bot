@@ -14,6 +14,7 @@ services:
       - WEBHOOK_SECRET=${WEBHOOK_SECRET:-webhook_secret}
       - API_KEY=${API_KEY:-}
       - REDIS_URL=redis://redis:6379/0
+      - DATABASE_URL=postgresql+asyncpg://football_bot:${DB_PASSWORD:-password}@postgres:5432/football_lineup
       - ENVIRONMENT=development
       - CORS_ORIGINS=["http://localhost:3000","http://localhost:5173"]
     volumes:
@@ -23,6 +24,7 @@ services:
     restart: unless-stopped
     depends_on:
       - redis
+      - postgres
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
       interval: 30s
@@ -63,8 +65,30 @@ services:
       retries: 3
       start_period: 5s
 
+  postgres:
+    image: postgres:15-alpine
+    environment:
+      - POSTGRES_USER=football_bot
+      - POSTGRES_PASSWORD=${DB_PASSWORD:-password}
+      - POSTGRES_DB=football_lineup
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    networks:
+      - app-network
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U football_bot -d football_lineup"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 5s
+
 volumes:
   redis_data:
+    driver: local
+  postgres_data:
     driver: local
 
 networks:

@@ -79,6 +79,17 @@ class Settings(BaseSettings):
         description="Redis connection URL",
     )
 
+    # Database Configuration
+    database_url: str = Field(
+        default="postgresql+asyncpg://football_bot:password@localhost:5432/football_lineup",
+        description="PostgreSQL database URL",
+    )
+
+    @property
+    def debug(self) -> bool:
+        """Check if debug mode is enabled."""
+        return self.is_development
+
     @property
     def is_production(self) -> bool:
         """Check if running in production environment."""

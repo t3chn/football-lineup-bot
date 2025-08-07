@@ -5,6 +5,7 @@ import httpx
 from backend.app.adapters.football_api import FootballAPIClient
 from backend.app.exceptions import ExternalAPIError, TeamNotFoundError, TimeoutError
 from backend.app.models.prediction import Player, PredictionResponse
+from backend.app.repositories.prediction import PredictionRepository
 from backend.app.services.cache_factory import get_cache
 from backend.app.utils.logging import generate_request_id, get_logger, set_request_id
 
@@ -14,9 +15,10 @@ logger = get_logger(__name__)
 class PredictionService:
     """Service for handling lineup predictions."""
 
-    def __init__(self) -> None:
+    def __init__(self, prediction_repo: PredictionRepository | None = None) -> None:
         """Initialize prediction service."""
         self.cache = None
+        self.prediction_repo = prediction_repo
 
     async def get_prediction(self, team_name: str) -> PredictionResponse:
         """Get lineup prediction for a team.
@@ -61,6 +63,21 @@ class PredictionService:
         # Cache the result
         await self.cache.set(cache_key, prediction.model_dump())
         log.info("Prediction cached", cache_key=cache_key)
+
+        # Store in database if repository is available
+        if self.prediction_repo:
+            try:
+                await self.prediction_repo.create(
+                    team_name=team_name,
+                    formation=prediction.formation,
+                    lineup=prediction.model_dump(),
+                    confidence=prediction.confidence,
+                    created_by="system",  # Could be user ID in future
+                )
+                log.debug("Prediction stored in database")
+            except Exception as e:
+                # Don't fail the request if database storage fails
+                log.warning("Failed to store prediction in database", error=str(e))
 
         return prediction
 
