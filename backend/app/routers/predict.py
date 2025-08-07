@@ -1,7 +1,8 @@
 """Prediction router."""
 
-from fastapi import APIRouter, HTTPException, Request
+from fastapi import APIRouter, Depends, HTTPException, Request
 
+from backend.app.auth import require_auth
 from backend.app.exceptions import BusinessError, ExternalAPIError, TeamNotFoundError
 from backend.app.models.prediction import PredictionResponse
 from backend.app.services.prediction import get_prediction_service
@@ -13,12 +14,17 @@ logger = get_logger(__name__)
 
 
 @router.get("/{team_name}", response_model=PredictionResponse)
-async def predict_lineup(request: Request, team_name: TeamNamePath) -> PredictionResponse:
+async def predict_lineup(
+    request: Request,
+    team_name: TeamNamePath,
+    api_key: str = Depends(require_auth),  # noqa: ARG001
+) -> PredictionResponse:
     """Get lineup prediction for a team.
 
     Args:
         request: FastAPI request
         team_name: Team name (validated)
+        api_key: Verified API key for authentication
 
     Returns:
         Prediction with lineup

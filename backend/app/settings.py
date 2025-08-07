@@ -67,6 +67,12 @@ class Settings(BaseSettings):
         description="Webhook secret for verification",
     )
 
+    # API Authentication
+    api_key: str = Field(
+        default="",
+        description="API key for authentication",
+    )
+
     @property
     def is_production(self) -> bool:
         """Check if running in production environment."""

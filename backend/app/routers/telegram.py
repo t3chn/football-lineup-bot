@@ -3,9 +3,10 @@
 import logging
 
 from aiogram.types import Update
-from fastapi import APIRouter, HTTPException, Request
+from fastapi import APIRouter, Depends, HTTPException, Request
 from fastapi.responses import JSONResponse
 
+from backend.app.auth import require_auth
 from backend.app.bot import get_bot, get_dispatcher
 from backend.app.bot.setup import setup_bot
 from backend.app.security import verify_telegram_webhook_signature
@@ -77,7 +78,7 @@ async def telegram_webhook(request: Request) -> JSONResponse:
 
 
 @router.post("/set-webhook")
-async def set_webhook() -> dict:
+async def set_webhook(api_key: str = Depends(require_auth)) -> dict:  # noqa: ARG001
     """Set webhook URL for Telegram bot.
 
     Returns:
@@ -118,7 +119,7 @@ async def set_webhook() -> dict:
 
 
 @router.delete("/webhook")
-async def delete_webhook() -> dict:
+async def delete_webhook(api_key: str = Depends(require_auth)) -> dict:  # noqa: ARG001
     """Delete webhook URL for Telegram bot.
 
     Returns:
@@ -139,7 +140,7 @@ async def delete_webhook() -> dict:
 
 
 @router.get("/webhook-info")
-async def get_webhook_info() -> dict:
+async def get_webhook_info(api_key: str = Depends(require_auth)) -> dict:  # noqa: ARG001
     """Get current webhook information.
 
     Returns:
