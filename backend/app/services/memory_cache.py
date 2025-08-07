@@ -6,7 +6,7 @@ from typing import Any
 from backend.app.settings import get_settings
 
 
-class CacheService:
+class InMemoryCacheService:
     """Simple in-memory cache with TTL support."""
 
     def __init__(self) -> None:
@@ -98,19 +98,3 @@ class CacheService:
             True if cache is empty
         """
         return len(self._cache) == 0
-
-
-# Global cache instance
-_cache_instance: CacheService | None = None
-
-
-def get_cache() -> CacheService:
-    """Get global cache instance.
-
-    Returns:
-        Global cache service instance
-    """
-    global _cache_instance
-    if _cache_instance is None:
-        _cache_instance = CacheService()
-    return _cache_instance

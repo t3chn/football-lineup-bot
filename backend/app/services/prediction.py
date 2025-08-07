@@ -5,7 +5,7 @@ import httpx
 from backend.app.adapters.football_api import FootballAPIClient
 from backend.app.exceptions import ExternalAPIError, TeamNotFoundError, TimeoutError
 from backend.app.models.prediction import Player, PredictionResponse
-from backend.app.services.cache import get_cache
+from backend.app.services.cache_factory import get_cache
 from backend.app.utils.logging import generate_request_id, get_logger, set_request_id
 
 logger = get_logger(__name__)
@@ -16,7 +16,7 @@ class PredictionService:
 
     def __init__(self) -> None:
         """Initialize prediction service."""
-        self.cache = get_cache()
+        self.cache = None
 
     async def get_prediction(self, team_name: str) -> PredictionResponse:
         """Get lineup prediction for a team.
@@ -39,9 +39,13 @@ class PredictionService:
 
         log.info("Starting prediction request")
 
+        # Initialize cache if not already done
+        if self.cache is None:
+            self.cache = await get_cache()
+
         # Check cache first
         cache_key = f"prediction:{team_name.lower()}"
-        cached_data = self.cache.get(cache_key)
+        cached_data = await self.cache.get(cache_key)
 
         if cached_data:
             prediction = PredictionResponse(**cached_data)
@@ -55,7 +59,7 @@ class PredictionService:
         prediction = await self._fetch_from_api(team_name)
 
         # Cache the result
-        self.cache.set(cache_key, prediction.model_dump())
+        await self.cache.set(cache_key, prediction.model_dump())
         log.info("Prediction cached", cache_key=cache_key)
 
         return prediction

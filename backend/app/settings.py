@@ -73,6 +73,12 @@ class Settings(BaseSettings):
         description="API key for authentication",
     )
 
+    # Redis Configuration
+    redis_url: str = Field(
+        default="redis://localhost:6379/0",
+        description="Redis connection URL",
+    )
+
     @property
     def is_production(self) -> bool:
         """Check if running in production environment."""
