@@ -4,9 +4,12 @@ from aiogram import Router
 from aiogram.filters import Command
 from aiogram.types import Message
 
+from backend.app.exceptions import BusinessError, ExternalAPIError, TeamNotFoundError
 from backend.app.services.prediction import get_prediction_service
+from backend.app.utils.logging import get_logger
 
 router = Router()
+logger = get_logger(__name__)
 
 
 @router.message(Command("start"))
@@ -85,12 +88,33 @@ async def predict_handler(message: Message) -> None:
 
         await message.answer(response)
 
-    except ValueError as e:
-        await message.answer(f"❌ {e}")
-    except Exception:
-        await message.answer(
-            "❌ An error occurred while fetching the prediction. " "Please try again later."
+    except TeamNotFoundError as e:
+        logger.warning(
+            "Team not found",
+            error_code=e.error_code,
+            team=team_name,
+            user_id=message.from_user.id if message.from_user else None,
         )
+        await message.answer(f"❌ {e.message}")
+
+    except (ExternalAPIError, BusinessError) as e:
+        logger.error(
+            "Business error in bot handler",
+            error_code=e.error_code,
+            team=team_name,
+            user_id=message.from_user.id if message.from_user else None,
+        )
+        await message.answer(f"❌ {e.message}")
+
+    except Exception as e:
+        logger.error(
+            "Unexpected error in predict handler",
+            error=str(e),
+            error_type=type(e).__name__,
+            team=team_name,
+            user_id=message.from_user.id if message.from_user else None,
+        )
+        await message.answer("❌ An unexpected error occurred. Please try again later.")
 
 
 @router.message()

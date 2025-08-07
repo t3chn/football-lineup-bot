@@ -8,14 +8,19 @@ from fastapi.middleware.cors import CORSMiddleware
 from backend.app import __version__
 from backend.app.routers import health, predict, telegram
 from backend.app.settings import get_settings
+from backend.app.utils.logging import get_logger, setup_logging
+
+# Setup structured logging
+setup_logging(log_level="INFO", json_format=False)
+logger = get_logger(__name__)
 
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):  # noqa: ARG001
     """Application lifespan manager."""
-    print(f"Starting Football Lineup Bot v{__version__}")
+    logger.info("Starting Football Lineup Bot", version=__version__)
     yield
-    print("Shutting down Football Lineup Bot")
+    logger.info("Shutting down Football Lineup Bot")
 
 
 app = FastAPI(
