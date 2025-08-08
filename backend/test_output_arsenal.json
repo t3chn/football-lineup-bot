@@ -1,0 +1,89 @@
+{
+  "team": "arsenal",
+  "match_date": null,
+  "opponent": null,
+  "formation": null,
+  "lineup": [
+    {
+      "id": 19465,
+      "name": "David Raya",
+      "number": 1,
+      "position": "SUB",
+      "is_captain": true
+    },
+    {
+      "id": 19959,
+      "name": "B. White",
+      "number": 4,
+      "position": "SUB",
+      "is_captain": false
+    },
+    {
+      "id": 313245,
+      "name": "M. Lewis-Skelly",
+      "number": 49,
+      "position": "SUB",
+      "is_captain": false
+    },
+    {
+      "id": 30407,
+      "name": "C. N\u00f8rgaard",
+      "number": 16,
+      "position": "SUB",
+      "is_captain": false
+    },
+    {
+      "id": 22090,
+      "name": "W. Saliba",
+      "number": 2,
+      "position": "SUB",
+      "is_captain": false
+    },
+    {
+      "id": 61431,
+      "name": "J. Kiwior",
+      "number": 15,
+      "position": "SUB",
+      "is_captain": false
+    },
+    {
+      "id": 313236,
+      "name": "E. Nwaneri",
+      "number": 22,
+      "position": "SUB",
+      "is_captain": false
+    },
+    {
+      "id": 47311,
+      "name": "Mikel Merino",
+      "number": 23,
+      "position": "SUB",
+      "is_captain": false
+    },
+    {
+      "id": 18979,
+      "name": "V. Gy\u00f6keres",
+      "number": 14,
+      "position": "SUB",
+      "is_captain": false
+    },
+    {
+      "id": 1460,
+      "name": "B. Saka",
+      "number": 7,
+      "position": "SUB",
+      "is_captain": false
+    },
+    {
+      "id": 127769,
+      "name": "Gabriel Martinelli",
+      "number": 11,
+      "position": "SUB",
+      "is_captain": false
+    }
+  ],
+  "confidence": 0.85,
+  "source": "api-football",
+  "cached": false,
+  "timestamp": "2025-08-08T15:51:17.378248"
+}

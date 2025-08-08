@@ -34,6 +34,7 @@ AI-powered Football Lineup Predictor with Telegram Bot integration and Web Inter
 - Node.js 20+
 - Docker & Docker Compose (optional)
 - Telegram Bot Token (for bot features)
+- API-Football Key (for real data - see [API Setup Guide](SETUP_API.md))
 
 ### 🏃 Running Locally
 
@@ -162,7 +163,7 @@ curl http://localhost:8000/predict/Arsenal
 
 ## 🧪 Testing
 
-Run the test suite:
+### Unit Tests
 
 ```bash
 # Run all tests
@@ -173,6 +174,21 @@ uv run pytest --cov=backend
 
 # Run specific test file
 uv run pytest backend/tests/test_prediction_service.py
+```
+
+### API Integration Testing
+
+After configuring your API key, test the integration:
+
+```bash
+# Run comprehensive API tests
+cd backend
+python test_api_integration.py
+
+# Quick test for specific teams
+python quick_test.py                    # Interactive mode
+python quick_test.py arsenal            # Test specific team
+python quick_test.py "real madrid"      # Test team with space in name
 ```
 
 ## 🔧 Development
