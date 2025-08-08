@@ -10,7 +10,7 @@ from slowapi.errors import RateLimitExceeded
 from backend.app import __version__
 from backend.app.middleware.logging import LoggingMiddleware
 from backend.app.middleware.rate_limiting import limiter
-from backend.app.routers import health, predict, telegram
+from backend.app.routers import analytics, health, predict, schedule, telegram
 from backend.app.settings import get_settings
 from backend.app.utils.logging import get_logger, setup_logging
 
@@ -57,6 +57,8 @@ app.add_middleware(
 
 app.include_router(health.router)
 app.include_router(predict.router)
+app.include_router(analytics.router)
+app.include_router(schedule.router)
 app.include_router(telegram.router)
 
 

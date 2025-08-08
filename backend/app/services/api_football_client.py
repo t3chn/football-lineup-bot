@@ -444,3 +444,180 @@ class APIFootballClient:
             logger.error("Error searching team", error=str(e))
 
         return None
+
+    async def get_fixtures(
+        self,
+        league_id: int | None = None,
+        team_id: int | None = None,
+        date_from: str | None = None,
+        date_to: str | None = None,
+        limit: int = 20,
+        season: int | None = None,
+    ) -> list:
+        """Get fixtures based on filters.
+
+        Args:
+            league_id: Optional league ID
+            team_id: Optional team ID
+            date_from: Start date (YYYY-MM-DD)
+            date_to: End date (YYYY-MM-DD)
+            limit: Maximum number of fixtures
+
+        Returns:
+            List of fixtures
+        """
+        if not self.is_configured:
+            return []
+
+        try:
+            async with httpx.AsyncClient() as client:
+                params = {}
+                # Add season (current year for football season)
+                if season:
+                    params["season"] = season
+                else:
+                    # Default to current season
+                    from datetime import datetime
+
+                    current_year = datetime.now().year
+                    # Football season typically runs from August to May
+                    # If we're in Aug-Dec, use current year; if Jan-July, use previous year
+                    current_month = datetime.now().month
+                    if current_month >= 8:
+                        params["season"] = current_year
+                    else:
+                        params["season"] = current_year - 1
+
+                if league_id:
+                    params["league"] = league_id
+                else:
+                    # Default to Premier League if no league specified
+                    params["league"] = 39  # Premier League
+
+                if team_id:
+                    params["team"] = team_id
+                if date_from:
+                    params["from"] = date_from
+                if date_to:
+                    params["to"] = date_to
+
+                response = await client.get(
+                    f"{self.base_url}/fixtures",
+                    params=params,
+                    headers={
+                        "X-RapidAPI-Key": self.api_key,
+                        "X-RapidAPI-Host": "api-football-v1.p.rapidapi.com",
+                    },
+                    timeout=10.0,
+                )
+
+                if response.status_code == 200:
+                    data = response.json()
+                    fixtures = data.get("response", [])
+                    return fixtures[:limit]
+
+        except Exception as e:
+            logger.error("Error fetching fixtures", error=str(e))
+
+        return []
+
+    async def get_fixture_by_id(self, fixture_id: int) -> dict | None:
+        """Get fixture details by ID.
+
+        Args:
+            fixture_id: Fixture ID
+
+        Returns:
+            Fixture details or None
+        """
+        if not self.is_configured:
+            return None
+
+        try:
+            async with httpx.AsyncClient() as client:
+                response = await client.get(
+                    f"{self.base_url}/fixtures",
+                    params={"id": fixture_id},
+                    headers={
+                        "X-RapidAPI-Key": self.api_key,
+                        "X-RapidAPI-Host": "api-football-v1.p.rapidapi.com",
+                    },
+                    timeout=10.0,
+                )
+
+                if response.status_code == 200:
+                    data = response.json()
+                    if data.get("response"):
+                        return data["response"][0]
+
+        except Exception as e:
+            logger.error("Error fetching fixture", error=str(e))
+
+        return None
+
+    async def get_fixture_lineups(self, fixture_id: int) -> dict | None:
+        """Get lineups for a fixture.
+
+        Args:
+            fixture_id: Fixture ID
+
+        Returns:
+            Lineups or None
+        """
+        if not self.is_configured:
+            return None
+
+        try:
+            async with httpx.AsyncClient() as client:
+                response = await client.get(
+                    f"{self.base_url}/fixtures/lineups",
+                    params={"fixture": fixture_id},
+                    headers={
+                        "X-RapidAPI-Key": self.api_key,
+                        "X-RapidAPI-Host": "api-football-v1.p.rapidapi.com",
+                    },
+                    timeout=10.0,
+                )
+
+                if response.status_code == 200:
+                    data = response.json()
+                    return data.get("response")
+
+        except Exception as e:
+            logger.error("Error fetching lineups", error=str(e))
+
+        return None
+
+    async def get_team_info(self, team_id: int) -> dict | None:
+        """Get team information by ID.
+
+        Args:
+            team_id: Team ID
+
+        Returns:
+            Team info or None
+        """
+        if not self.is_configured:
+            return None
+
+        try:
+            async with httpx.AsyncClient() as client:
+                response = await client.get(
+                    f"{self.base_url}/teams",
+                    params={"id": team_id},
+                    headers={
+                        "X-RapidAPI-Key": self.api_key,
+                        "X-RapidAPI-Host": "api-football-v1.p.rapidapi.com",
+                    },
+                    timeout=10.0,
+                )
+
+                if response.status_code == 200:
+                    data = response.json()
+                    if data.get("response"):
+                        return data["response"][0]["team"]
+
+        except Exception as e:
+            logger.error("Error fetching team info", error=str(e))
+
+        return None

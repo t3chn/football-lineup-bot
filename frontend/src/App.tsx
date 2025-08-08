@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import LineupPredictor from './components/LineupPredictor';
 import ModernLineupPredictor from './components/ModernLineupPredictor';
+import ModernLineupPredictorEnhanced from './components/ModernLineupPredictorEnhanced';
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -14,19 +15,42 @@ const queryClient = new QueryClient({
 
 function App() {
   const [isDarkMode, setIsDarkMode] = useState(true);
-  const [useModernUI, setUseModernUI] = useState(true);
+  const [uiMode, setUiMode] = useState<'enhanced' | 'modern' | 'classic'>('enhanced');
 
-  if (useModernUI) {
+  if (uiMode === 'enhanced') {
+    return (
+      <QueryClientProvider client={queryClient}>
+        <ModernLineupPredictorEnhanced />
+        {/* UI Toggle Button */}
+        <button
+          onClick={() => setUiMode('modern')}
+          className="fixed bottom-4 right-4 z-50 px-4 py-2 bg-gray-800/80 backdrop-blur-md text-white rounded-full text-sm font-semibold hover:bg-gray-700/80 transition-all"
+        >
+          Switch to Simple UI
+        </button>
+      </QueryClientProvider>
+    );
+  }
+
+  if (uiMode === 'modern') {
     return (
       <QueryClientProvider client={queryClient}>
         <ModernLineupPredictor />
-        {/* UI Toggle Button */}
-        <button
-          onClick={() => setUseModernUI(false)}
-          className="fixed bottom-4 right-4 z-50 px-4 py-2 bg-gray-800/80 backdrop-blur-md text-white rounded-full text-sm font-semibold hover:bg-gray-700/80 transition-all"
-        >
-          Switch to Classic UI
-        </button>
+        {/* UI Toggle Buttons */}
+        <div className="fixed bottom-4 right-4 z-50 flex gap-2">
+          <button
+            onClick={() => setUiMode('enhanced')}
+            className="px-4 py-2 bg-green-600/80 backdrop-blur-md text-white rounded-full text-sm font-semibold hover:bg-green-500/80 transition-all"
+          >
+            Enhanced UI
+          </button>
+          <button
+            onClick={() => setUiMode('classic')}
+            className="px-4 py-2 bg-gray-800/80 backdrop-blur-md text-white rounded-full text-sm font-semibold hover:bg-gray-700/80 transition-all"
+          >
+            Classic UI
+          </button>
+        </div>
       </QueryClientProvider>
     );
   }
@@ -43,7 +67,13 @@ function App() {
                 </h1>
                 <div className="flex gap-2">
                   <button
-                    onClick={() => setUseModernUI(true)}
+                    onClick={() => setUiMode('enhanced')}
+                    className="px-4 py-2 bg-gradient-to-r from-purple-400 to-pink-500 text-white rounded-lg font-semibold hover:shadow-lg transition-all"
+                  >
+                    Try Enhanced UI
+                  </button>
+                  <button
+                    onClick={() => setUiMode('modern')}
                     className="px-4 py-2 bg-gradient-to-r from-green-400 to-blue-500 text-white rounded-lg font-semibold hover:shadow-lg transition-all"
                   >
                     Try Modern UI

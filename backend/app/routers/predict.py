@@ -7,6 +7,7 @@ from backend.app.auth import require_auth
 from backend.app.exceptions import BusinessError, ExternalAPIError, TeamNotFoundError
 from backend.app.middleware.rate_limiting import limiter
 from backend.app.models.prediction import PredictionResponse
+from backend.app.services.lineup_predictor import LineupPredictor
 from backend.app.services.prediction import get_prediction_service
 from backend.app.utils.logging import generate_request_id, get_logger, set_request_id
 from backend.app.validators.common import TeamNamePath, validate_team_name
@@ -69,3 +70,65 @@ async def predict_lineup(
     except Exception as e:
         log.error("Unexpected error", error=str(e), error_type=type(e).__name__)
         raise HTTPException(status_code=500, detail="An unexpected error occurred") from e
+
+
+@router.get("/advanced/{team_id}")
+@limiter.limit("5 per minute")
+async def predict_lineup_advanced(
+    request: Request,
+    team_id: int,
+    fixture_id: int | None = None,
+    use_news: bool = True,
+    use_injuries: bool = True,
+    api_key: str = Depends(require_auth),  # noqa: ARG001
+) -> JSONResponse:
+    """Get advanced lineup prediction with injury and news analysis.
+
+    Args:
+        request: FastAPI request
+        team_id: Team ID from API-Football
+        fixture_id: Optional fixture ID for match-specific prediction
+        use_news: Whether to include news analysis
+        use_injuries: Whether to include injury tracking
+        api_key: Verified API key for authentication
+
+    Returns:
+        Advanced prediction with confidence scores and data sources
+    """
+    request_id = generate_request_id()
+    set_request_id(request_id)
+    log = logger.bind(
+        request_id=request_id,
+        path=request.url.path,
+        method=request.method,
+        team_id=team_id,
+        fixture_id=fixture_id,
+    )
+
+    log.info("Processing advanced prediction request")
+
+    predictor = LineupPredictor()
+
+    try:
+        prediction = await predictor.predict_lineup(
+            team_id=team_id,
+            fixture_id=fixture_id,
+            use_news=use_news,
+            use_injuries=use_injuries,
+        )
+
+        if "error" in prediction:
+            log.warning("Prediction failed", error=prediction["error"])
+            raise HTTPException(status_code=400, detail=prediction["error"])
+
+        log.info(
+            "Advanced prediction successful",
+            confidence=prediction.get("confidence"),
+            sources=prediction.get("data_sources"),
+        )
+
+        return JSONResponse(content=prediction)
+
+    except Exception as e:
+        log.error("Advanced prediction error", error=str(e), error_type=type(e).__name__)
+        raise HTTPException(status_code=500, detail="Failed to generate advanced prediction") from e
