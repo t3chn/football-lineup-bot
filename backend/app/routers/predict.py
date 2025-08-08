@@ -1,6 +1,7 @@
 """Prediction router."""
 
 from fastapi import APIRouter, Depends, HTTPException, Request
+from fastapi.responses import JSONResponse
 
 from backend.app.auth import require_auth
 from backend.app.exceptions import BusinessError, ExternalAPIError, TeamNotFoundError
@@ -20,7 +21,7 @@ async def predict_lineup(
     request: Request,
     team_name: TeamNamePath,
     api_key: str = Depends(require_auth),  # noqa: ARG001
-) -> PredictionResponse:
+) -> JSONResponse:
     """Get lineup prediction for a team.
 
     Args:
@@ -50,7 +51,8 @@ async def predict_lineup(
     try:
         prediction = await service.get_prediction(team)
         log.info("Prediction successful", source=prediction.source, cached=prediction.cached)
-        return prediction
+        # Use model_dump with mode='json' to handle datetime serialization
+        return JSONResponse(content=prediction.model_dump(mode="json"))
 
     except TeamNotFoundError as e:
         log.warning("Team not found", error_code=e.error_code, details=e.details)

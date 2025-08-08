@@ -30,13 +30,21 @@ def get_rate_limit_key(request: Request) -> str:
 
 
 # Initialize limiter with Redis storage if available
+# In development mode, use memory storage (non-distributed)
 storage_uri = None
-if settings.redis_url:
+if settings.redis_url and not settings.is_development:
     storage_uri = settings.redis_url
+
+# In development mode, use more relaxed limits
+default_limits = (
+    ["1000 per minute", "10000 per hour"]
+    if settings.is_development
+    else ["100 per minute", "1000 per hour"]
+)
 
 limiter = Limiter(
     key_func=get_rate_limit_key,
-    default_limits=["100 per minute", "1000 per hour"],
+    default_limits=default_limits,
     storage_uri=storage_uri,
     headers_enabled=True,  # Add rate limit headers to responses
 )

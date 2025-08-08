@@ -26,6 +26,11 @@ def verify_api_key(api_key: str | None) -> str:
     """
     settings = get_settings()
 
+    # In development mode, skip API key validation
+    if settings.is_development:
+        logger.debug("Development mode: bypassing API key verification")
+        return api_key or "dev-key"
+
     if not api_key:
         logger.warning("Missing API key in request")
         raise HTTPException(
