@@ -7,135 +7,148 @@ interface ModernFootballFieldProps {
   formation?: string | null;
 }
 
-interface PlayerWithIndex extends Player {
-  _positionIndex?: number;
-}
-
 function ModernFootballField({ lineup, formation }: ModernFootballFieldProps) {
   const [selectedPlayer, setSelectedPlayer] = useState<Player | null>(null);
   const [hoveredPlayer, setHoveredPlayer] = useState<Player | null>(null);
 
-  const playersWithIndices = useMemo(() => {
-    const positionCounts: Record<string, number> = {};
-
-    return lineup.map(player => {
-      const position = player.position;
-      const index = positionCounts[position] || 0;
-      positionCounts[position] = index + 1;
-
-      return {
-        ...player,
-        _positionIndex: index
-      } as PlayerWithIndex;
-    });
-  }, [lineup]);
-
-  const getPlayerPosition = (player: PlayerWithIndex): { top: string; left: string } => {
-    const { position, _positionIndex = 0 } = player;
-
-    // Dynamic positioning based on formation
-    if (position === 'CB') {
-      const cbPositions = [
-        { top: '75%', left: '35%' },
-        { top: '75%', left: '65%' }
-      ];
-      return cbPositions[_positionIndex] || cbPositions[0];
+  // Parse formation (e.g., "4-3-3" -> [4, 3, 3])
+  const formationArray = useMemo(() => {
+    if (!formation) return [4, 3, 3];
+    const parts = formation.split('-').map(n => parseInt(n, 10));
+    if (parts.length === 3 && parts.every(n => !isNaN(n))) {
+      return parts;
     }
+    return [4, 3, 3]; // Default formation
+  }, [formation]);
 
-    if (position === 'CM') {
-      const cmPositions = [
-        { top: '55%', left: '30%' },
-        { top: '55%', left: '50%' },
-        { top: '55%', left: '70%' }
-      ];
-      return cmPositions[_positionIndex] || cmPositions[0];
-    }
+  // Calculate player positions based on formation
+  const getPlayerPosition = (player: Player, index: number): { top: string; left: string } => {
+    const { position } = player;
 
-    const positions: Record<string, { top: string; left: string }> = {
-      GK: { top: '88%', left: '50%' },
-      LB: { top: '75%', left: '15%' },
-      RB: { top: '75%', left: '85%' },
-      LW: { top: '30%', left: '20%' },
-      RW: { top: '30%', left: '80%' },
-      AM: { top: '40%', left: '50%' },
-      ST: { top: '20%', left: '50%' },
-      CF: { top: '20%', left: '50%' },
-      CDM: { top: '60%', left: '50%' },
-      CAM: { top: '40%', left: '50%' },
-      LM: { top: '55%', left: '20%' },
-      RM: { top: '55%', left: '80%' },
+    // Map API positions to standard positions
+    const positionMap: Record<string, string> = {
+      'SUB': position === 'SUB' && index === 0 ? 'GK' :
+            position === 'SUB' && index < 5 ? 'DEF' :
+            position === 'SUB' && index < 8 ? 'MID' : 'FW',
     };
 
-    return positions[position] || { top: '50%', left: '50%' };
+    const mappedPosition = positionMap[position] || position;
+
+    // Count players per line based on formation
+    const [defenders, midfielders, forwards] = formationArray;
+    const totalPlayers = lineup.length;
+
+    // Distribute players by formation
+    let lineupPositions: Array<{ top: string; left: string }> = [];
+
+    // GK position
+    lineupPositions.push({ top: '88%', left: '50%' });
+
+    // Defenders
+    for (let i = 0; i < defenders; i++) {
+      const spacing = 70 / (defenders + 1);
+      lineupPositions.push({
+        top: '72%',
+        left: `${15 + spacing * (i + 1)}%`
+      });
+    }
+
+    // Midfielders
+    for (let i = 0; i < midfielders; i++) {
+      const spacing = 70 / (midfielders + 1);
+      lineupPositions.push({
+        top: '50%',
+        left: `${15 + spacing * (i + 1)}%`
+      });
+    }
+
+    // Forwards
+    for (let i = 0; i < forwards; i++) {
+      const spacing = 60 / (forwards + 1);
+      lineupPositions.push({
+        top: '25%',
+        left: `${20 + spacing * (i + 1)}%`
+      });
+    }
+
+    // Return position based on index
+    return lineupPositions[index] || { top: '50%', left: '50%' };
   };
 
   return (
-    <div className="relative">
-      {/* 3D Perspective Container */}
-      <div className="perspective-1000">
+    <div className="relative w-full max-w-4xl mx-auto">
+      {/* Field Container - Responsive */}
+      <div className="relative w-full">
         <motion.div
-          initial={{ rotateX: 15 }}
-          animate={{ rotateX: 0 }}
-          transition={{ duration: 1, ease: "easeOut" }}
-          className="relative w-full aspect-[3/4] transform-gpu preserve-3d"
+          initial={{ opacity: 0, scale: 0.95 }}
+          animate={{ opacity: 1, scale: 1 }}
+          transition={{ duration: 0.5 }}
+          className="relative w-full aspect-[3/4] md:aspect-[4/3] lg:aspect-[3/2]"
         >
           {/* Field Background with Gradient */}
-          <div className="absolute inset-0 bg-gradient-to-b from-green-600 via-green-500 to-green-600 rounded-2xl overflow-hidden shadow-2xl">
+          <div className="absolute inset-0 bg-gradient-to-b from-green-600 via-green-500 to-green-600 rounded-lg md:rounded-xl lg:rounded-2xl overflow-hidden shadow-2xl">
             {/* Grass Pattern */}
             <div className="absolute inset-0 opacity-30">
               {[...Array(10)].map((_, i) => (
                 <div
                   key={i}
-                  className="absolute w-full h-[10%] bg-green-700"
-                  style={{ top: `${i * 20}%` }}
+                  className={`absolute w-full h-[10%] ${i % 2 === 0 ? 'bg-green-600' : 'bg-green-700'}`}
+                  style={{ top: `${i * 10}%` }}
                 />
               ))}
             </div>
 
-            {/* Field Lines with Glow Effect */}
+            {/* Field Lines */}
             <svg className="absolute inset-0 w-full h-full" viewBox="0 0 100 100" preserveAspectRatio="none">
+              {/* Outer Box */}
+              <rect x="1" y="1" width="98" height="98" fill="none" stroke="white" strokeWidth="0.5" opacity="0.7" />
+
               {/* Center Line */}
-              <line x1="0" y1="50" x2="100" y2="50" stroke="white" strokeWidth="0.3" opacity="0.8" />
+              <line x1="0" y1="50" x2="100" y2="50" stroke="white" strokeWidth="0.5" opacity="0.7" />
 
               {/* Center Circle */}
-              <circle cx="50" cy="50" r="9" fill="none" stroke="white" strokeWidth="0.3" opacity="0.8" />
-              <circle cx="50" cy="50" r="0.5" fill="white" opacity="0.8" />
+              <circle cx="50" cy="50" r="9" fill="none" stroke="white" strokeWidth="0.5" opacity="0.7" />
+              <circle cx="50" cy="50" r="0.5" fill="white" opacity="0.7" />
 
               {/* Penalty Areas */}
-              <rect x="30" y="0" width="40" height="16" fill="none" stroke="white" strokeWidth="0.3" opacity="0.8" />
-              <rect x="30" y="84" width="40" height="16" fill="none" stroke="white" strokeWidth="0.3" opacity="0.8" />
+              <rect x="25" y="0" width="50" height="18" fill="none" stroke="white" strokeWidth="0.5" opacity="0.7" />
+              <rect x="25" y="82" width="50" height="18" fill="none" stroke="white" strokeWidth="0.5" opacity="0.7" />
 
               {/* Goal Areas */}
-              <rect x="40" y="0" width="20" height="6" fill="none" stroke="white" strokeWidth="0.3" opacity="0.8" />
-              <rect x="40" y="94" width="20" height="6" fill="none" stroke="white" strokeWidth="0.3" opacity="0.8" />
+              <rect x="37.5" y="0" width="25" height="8" fill="none" stroke="white" strokeWidth="0.5" opacity="0.7" />
+              <rect x="37.5" y="92" width="25" height="8" fill="none" stroke="white" strokeWidth="0.5" opacity="0.7" />
 
               {/* Penalty Spots */}
-              <circle cx="50" cy="11" r="0.3" fill="white" opacity="0.8" />
-              <circle cx="50" cy="89" r="0.3" fill="white" opacity="0.8" />
+              <circle cx="50" cy="12" r="0.5" fill="white" opacity="0.7" />
+              <circle cx="50" cy="88" r="0.5" fill="white" opacity="0.7" />
+
+              {/* Goals */}
+              <rect x="44" y="0" width="12" height="3" fill="none" stroke="white" strokeWidth="0.5" opacity="0.7" />
+              <rect x="44" y="97" width="12" height="3" fill="none" stroke="white" strokeWidth="0.5" opacity="0.7" />
             </svg>
 
             {/* Field Lighting Effect */}
-            <div className="absolute inset-0 bg-gradient-to-t from-black/30 via-transparent to-black/20" />
+            <div className="absolute inset-0 bg-gradient-to-t from-black/20 via-transparent to-transparent pointer-events-none" />
           </div>
 
           {/* Players */}
-          {playersWithIndices.map((player, index) => {
-            const position = getPlayerPosition(player);
+          {lineup.map((player, index) => {
+            const position = getPlayerPosition(player, index);
             const isSelected = selectedPlayer?.name === player.name;
             const isHovered = hoveredPlayer?.name === player.name;
 
             return (
               <motion.div
-                key={`${player.position}-${index}`}
+                key={`${player.name}-${index}`}
                 initial={{ scale: 0, opacity: 0 }}
                 animate={{ scale: 1, opacity: 1 }}
                 transition={{
-                  delay: index * 0.1,
+                  delay: index * 0.05,
                   type: "spring",
                   stiffness: 200,
                   damping: 20
                 }}
-                className="absolute transform -translate-x-1/2 -translate-y-1/2 cursor-pointer"
+                className="absolute transform -translate-x-1/2 -translate-y-1/2 cursor-pointer z-10"
                 style={{ top: position.top, left: position.left }}
                 onClick={() => setSelectedPlayer(player)}
                 onMouseEnter={() => setHoveredPlayer(player)}
@@ -143,24 +156,24 @@ function ModernFootballField({ lineup, formation }: ModernFootballFieldProps) {
               >
                 <motion.div
                   animate={{
-                    scale: isHovered ? 1.2 : 1,
-                    y: isHovered ? -5 : 0,
+                    scale: isHovered ? 1.15 : 1,
+                    y: isHovered ? -3 : 0,
                   }}
                   transition={{ type: "spring", stiffness: 300 }}
                   className="relative"
                 >
                   {/* Player Shadow */}
-                  <div className="absolute -bottom-1 left-1/2 -translate-x-1/2 w-8 h-2 bg-black/30 rounded-full blur-sm" />
+                  <div className="absolute -bottom-1 left-1/2 -translate-x-1/2 w-6 h-1.5 bg-black/20 rounded-full blur-sm" />
 
-                  {/* Player Circle with Gradient */}
+                  {/* Player Circle */}
                   <div className={`
-                    relative w-14 h-14 rounded-full flex items-center justify-center
-                    bg-gradient-to-br from-white to-gray-200
-                    shadow-lg border-2 transition-all duration-300
-                    ${isSelected ? 'border-yellow-400 ring-4 ring-yellow-400/30' : 'border-white/50'}
-                    ${isHovered ? 'shadow-2xl' : ''}
+                    relative w-10 h-10 md:w-12 md:h-12 lg:w-14 lg:h-14 rounded-full flex items-center justify-center
+                    bg-gradient-to-br from-white to-gray-100
+                    shadow-lg border-2 transition-all duration-200
+                    ${isSelected ? 'border-yellow-400 ring-2 ring-yellow-400/30' : 'border-white/80'}
+                    ${isHovered ? 'shadow-xl' : ''}
                   `}>
-                    <span className="text-lg font-bold text-gray-900">
+                    <span className="text-sm md:text-base lg:text-lg font-bold text-gray-900">
                       {player.number || '?'}
                     </span>
 
@@ -169,29 +182,33 @@ function ModernFootballField({ lineup, formation }: ModernFootballFieldProps) {
                       <motion.div
                         initial={{ scale: 0 }}
                         animate={{ scale: 1 }}
-                        className="absolute -top-2 -right-2 w-6 h-6 bg-gradient-to-br from-yellow-400 to-yellow-600 rounded-full flex items-center justify-center shadow-lg"
+                        className="absolute -top-1 -right-1 w-4 h-4 md:w-5 md:h-5 bg-gradient-to-br from-yellow-400 to-yellow-600 rounded-full flex items-center justify-center shadow-md"
                       >
-                        <span className="text-xs font-black text-white">C</span>
+                        <span className="text-[8px] md:text-[10px] font-black text-white">C</span>
                       </motion.div>
                     )}
                   </div>
 
-                  {/* Player Name */}
-                  <motion.div
-                    initial={{ opacity: 0, y: 5 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    transition={{ delay: index * 0.1 + 0.3 }}
-                    className="absolute top-16 left-1/2 -translate-x-1/2 whitespace-nowrap"
-                  >
-                    <div className="px-3 py-1 bg-black/80 backdrop-blur-md rounded-lg shadow-lg">
-                      <p className="text-xs font-semibold text-white">
-                        {player.name.split(' ').pop()}
-                      </p>
-                      <p className="text-[10px] text-green-400 text-center">
-                        {player.position}
-                      </p>
-                    </div>
-                  </motion.div>
+                  {/* Player Name - Show on hover or selection */}
+                  <AnimatePresence>
+                    {(isHovered || isSelected) && (
+                      <motion.div
+                        initial={{ opacity: 0, y: 5 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        exit={{ opacity: 0, y: 5 }}
+                        className="absolute top-12 md:top-14 lg:top-16 left-1/2 -translate-x-1/2 whitespace-nowrap z-20"
+                      >
+                        <div className="px-2 py-1 bg-black/90 backdrop-blur-sm rounded-md shadow-lg">
+                          <p className="text-[10px] md:text-xs font-semibold text-white">
+                            {player.name.length > 15 ? player.name.split(' ').pop() : player.name}
+                          </p>
+                          <p className="text-[8px] md:text-[10px] text-green-400 text-center">
+                            {player.position}
+                          </p>
+                        </div>
+                      </motion.div>
+                    )}
+                  </AnimatePresence>
                 </motion.div>
               </motion.div>
             );
@@ -202,12 +219,23 @@ function ModernFootballField({ lineup, formation }: ModernFootballFieldProps) {
             <motion.div
               initial={{ opacity: 0, x: -20 }}
               animate={{ opacity: 1, x: 0 }}
-              className="absolute top-4 left-4 px-4 py-2 bg-black/80 backdrop-blur-md rounded-full shadow-lg"
+              className="absolute top-2 left-2 md:top-4 md:left-4 px-3 py-1.5 bg-black/80 backdrop-blur-sm rounded-full shadow-lg"
             >
-              <span className="text-sm font-bold text-white">Formation: </span>
-              <span className="text-sm font-bold text-green-400">{formation}</span>
+              <span className="text-xs md:text-sm font-bold text-white">Formation: </span>
+              <span className="text-xs md:text-sm font-bold text-green-400">{formation}</span>
             </motion.div>
           )}
+
+          {/* Team Name Badge (if needed) */}
+          <motion.div
+            initial={{ opacity: 0, x: 20 }}
+            animate={{ opacity: 1, x: 0 }}
+            className="absolute top-2 right-2 md:top-4 md:right-4 px-3 py-1.5 bg-black/80 backdrop-blur-sm rounded-full shadow-lg"
+          >
+            <span className="text-xs md:text-sm font-bold text-green-400">
+              {lineup.length} Players
+            </span>
+          </motion.div>
         </motion.div>
       </div>
 
@@ -227,40 +255,40 @@ function ModernFootballField({ lineup, formation }: ModernFootballFieldProps) {
               animate={{ scale: 1, y: 0 }}
               exit={{ scale: 0.9, y: 20 }}
               onClick={(e) => e.stopPropagation()}
-              className="relative z-10 w-full max-w-md"
+              className="relative z-10 w-full max-w-sm md:max-w-md"
             >
-              <div className="bg-gradient-to-br from-gray-900 to-gray-800 rounded-2xl p-6 shadow-2xl border border-white/10">
-                <div className="flex items-center gap-4 mb-4">
-                  <div className="w-20 h-20 bg-gradient-to-br from-green-400 to-blue-500 rounded-full flex items-center justify-center">
-                    <span className="text-3xl font-bold text-white">
+              <div className="bg-gradient-to-br from-gray-900 to-gray-800 rounded-xl md:rounded-2xl p-4 md:p-6 shadow-2xl border border-white/10">
+                <div className="flex items-center gap-3 md:gap-4 mb-4">
+                  <div className="w-16 h-16 md:w-20 md:h-20 bg-gradient-to-br from-green-400 to-blue-500 rounded-full flex items-center justify-center">
+                    <span className="text-2xl md:text-3xl font-bold text-white">
                       {selectedPlayer.number || '?'}
                     </span>
                   </div>
                   <div className="flex-1">
-                    <h3 className="text-2xl font-bold text-white flex items-center gap-2">
+                    <h3 className="text-lg md:text-2xl font-bold text-white flex items-center gap-2">
                       {selectedPlayer.name}
                       {selectedPlayer.is_captain && (
-                        <span className="px-3 py-1 bg-yellow-400/20 text-yellow-400 text-sm font-bold rounded-full">
+                        <span className="px-2 py-0.5 md:px-3 md:py-1 bg-yellow-400/20 text-yellow-400 text-xs md:text-sm font-bold rounded-full">
                           Captain
                         </span>
                       )}
                     </h3>
-                    <p className="text-green-400 font-semibold">{selectedPlayer.position}</p>
+                    <p className="text-green-400 font-semibold text-sm md:text-base">{selectedPlayer.position}</p>
                   </div>
                 </div>
 
-                <div className="space-y-3">
-                  <div className="flex justify-between items-center p-3 bg-white/5 rounded-lg">
-                    <span className="text-gray-400">Position</span>
-                    <span className="text-white font-semibold">{selectedPlayer.position}</span>
+                <div className="space-y-2 md:space-y-3">
+                  <div className="flex justify-between items-center p-2 md:p-3 bg-white/5 rounded-lg">
+                    <span className="text-gray-400 text-sm md:text-base">Position</span>
+                    <span className="text-white font-semibold text-sm md:text-base">{selectedPlayer.position}</span>
                   </div>
-                  <div className="flex justify-between items-center p-3 bg-white/5 rounded-lg">
-                    <span className="text-gray-400">Number</span>
-                    <span className="text-white font-semibold">{selectedPlayer.number || 'N/A'}</span>
+                  <div className="flex justify-between items-center p-2 md:p-3 bg-white/5 rounded-lg">
+                    <span className="text-gray-400 text-sm md:text-base">Number</span>
+                    <span className="text-white font-semibold text-sm md:text-base">{selectedPlayer.number || 'N/A'}</span>
                   </div>
-                  <div className="flex justify-between items-center p-3 bg-white/5 rounded-lg">
-                    <span className="text-gray-400">Role</span>
-                    <span className="text-white font-semibold">
+                  <div className="flex justify-between items-center p-2 md:p-3 bg-white/5 rounded-lg">
+                    <span className="text-gray-400 text-sm md:text-base">Role</span>
+                    <span className="text-white font-semibold text-sm md:text-base">
                       {selectedPlayer.is_captain ? 'Team Captain' : 'Player'}
                     </span>
                   </div>
@@ -268,7 +296,7 @@ function ModernFootballField({ lineup, formation }: ModernFootballFieldProps) {
 
                 <button
                   onClick={() => setSelectedPlayer(null)}
-                  className="mt-6 w-full py-3 bg-gradient-to-r from-green-400 to-blue-500 text-white font-bold rounded-xl hover:shadow-lg transition-all"
+                  className="mt-4 md:mt-6 w-full py-2.5 md:py-3 bg-gradient-to-r from-green-400 to-blue-500 text-white font-bold rounded-lg md:rounded-xl hover:shadow-lg transition-all text-sm md:text-base"
                 >
                   Close
                 </button>

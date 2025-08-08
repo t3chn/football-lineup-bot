@@ -71,6 +71,10 @@ class APIFootballClient:
         "Right Winger": "RW",
         "Left Winger": "LW",
         "Centre Forward": "ST",
+        "G": "GK",
+        "D": "DEF",
+        "M": "MID",
+        "F": "FW",
     }
 
     def __init__(self) -> None:
@@ -240,10 +244,21 @@ class APIFootballClient:
                         formation = team_lineup.get("formation", "4-3-3")
                         players = []
 
-                        # Parse starting XI
-                        for player_data in team_lineup.get("startXI", []):
+                        # Parse starting XI with positions based on grid
+                        startXI = team_lineup.get("startXI", [])
+
+                        # Assign positions based on grid position if pos is null
+                        for i, player_data in enumerate(startXI):
                             player_info = player_data["player"]
-                            position = self._map_position(player_info.get("pos"))
+                            pos = player_info.get("pos")
+                            grid = player_info.get("grid", "")
+
+                            # Try to determine position from grid or index
+                            if not pos or pos == "null":
+                                pos = self._position_from_grid(grid, i, formation)
+
+                            position = self._map_position(pos)
+
                             player = Player(
                                 id=player_info.get("id"),
                                 name=player_info.get("name", "Unknown"),
@@ -253,8 +268,9 @@ class APIFootballClient:
                             )
                             players.append(player)
 
-                        # Set captain (usually first player or specific logic)
+                        # Set captain (usually player with armband or first player)
                         if players:
+                            # Try to find captain from lineup coach info or default to first
                             players[0].is_captain = True
 
                         return formation, players
@@ -263,10 +279,85 @@ class APIFootballClient:
 
         except Exception as e:
             logger.error("Error fetching lineup", error=str(e))
-            raise ExternalAPIError(
-                message="Failed to fetch lineup",
-                error_code="LINEUP_FETCH_ERROR",
-            ) from e
+            # Return empty lineup instead of raising to allow fallback
+            return "4-3-3", []
+
+    def _position_from_grid(self, grid: str, index: int, formation: str) -> str:
+        """Determine position from grid position or index.
+
+        Args:
+            grid: Grid position like "1:1" (row:column)
+            index: Player index in lineup
+            formation: Team formation
+
+        Returns:
+            Position code
+        """
+        # TODO: Parse grid position when available
+        _ = grid  # Currently unused, reserved for future grid parsing
+
+        # Parse formation to understand player distribution
+        if formation:
+            parts = formation.split("-")
+            if len(parts) == 3:
+                defenders = int(parts[0])
+                midfielders = int(parts[1])
+                forwards = int(parts[2])
+
+                # Based on index, assign position
+                if index == 0:
+                    return "GK"
+                elif index <= defenders:
+                    # Defenders
+                    if defenders == 4:
+                        if index == 1 or index == 2:
+                            return "CB"
+                        elif index == 3:
+                            return "LB"
+                        else:
+                            return "RB"
+                    elif defenders == 3:
+                        return "CB"
+                    else:
+                        return "DEF"
+                elif index <= defenders + midfielders:
+                    # Midfielders
+                    mid_index = index - defenders
+                    if midfielders == 3:
+                        if mid_index == 1:
+                            return "CDM"
+                        else:
+                            return "CM"
+                    elif midfielders == 4:
+                        if mid_index <= 2:
+                            return "CM"
+                        elif mid_index == 3:
+                            return "LM"
+                        else:
+                            return "RM"
+                    else:
+                        return "MID"
+                else:
+                    # Forwards
+                    fwd_index = index - defenders - midfielders
+                    if forwards == 3:
+                        if fwd_index == 1:
+                            return "LW"
+                        elif fwd_index == 2:
+                            return "ST"
+                        else:
+                            return "RW"
+                    elif forwards == 2:
+                        return "ST"
+                    else:
+                        return "FW"
+
+        # Default positions by index if no formation
+        default_positions = ["GK", "RB", "CB", "CB", "LB", "CDM", "CM", "CM", "LW", "ST", "RW"]
+        if index < len(default_positions):
+            return default_positions[index]
+
+        return "SUB"
 
     def _map_position(self, api_position: str | None) -> str:
         """Map API position to our format.
@@ -277,7 +368,7 @@ class APIFootballClient:
         Returns:
             Mapped position code
         """
-        if not api_position:
+        if not api_position or api_position == "null":
             return "SUB"
 
         # Direct mapping
